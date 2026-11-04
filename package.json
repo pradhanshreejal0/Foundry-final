@@ -1,0 +1,10 @@
+{
+  "name": "multi-vendor-ecommerce",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "server": "cd server && npm run dev",
+    "client": "cd frontend && npm run dev",
+    "build:client": "cd frontend && npm run build"
+  }
+}

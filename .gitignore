@@ -1,0 +1,20 @@
+# Credentials & sensitive info
+CREDENTIALS.md
+envthings.txt
+.env
+*.env
+*.env.local
+
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Production builds
+dist/
+build/
+.output/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
