@@ -121,7 +121,7 @@ const allowedOrigins = [
   process.env.CLIENT_URL?.replace(/^["']|["']$/g, ""),
 ].filter(Boolean);
 const vercelPreview =
-  /^https:\/\/(foundry|final-ecommerce-website)-[a-z0-9-]+\.vercel\.app$/i;
+  /^https:\/\/(foundry|final-ecommerce-website|foundry-final-one|[a-z0-9-]+)\.vercel\.app$/i;
 
 app.use(
   cors({
