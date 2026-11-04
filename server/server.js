@@ -8,7 +8,11 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import zlib from "node:zlib";
 
-import { loginLimiter, forgotPasswordLimiter, registerLimiter } from "./middleware/rateLimiters.js";
+import {
+  loginLimiter,
+  forgotPasswordLimiter,
+  registerLimiter,
+} from "./middleware/rateLimiters.js";
 import { connectDB } from "./config/db.js";
 
 import authRoutes from "./routes/authRoutes.js";
@@ -82,9 +86,15 @@ app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+  res.setHeader(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(self)",
+  );
   if (req.secure || req.headers["x-forwarded-proto"] === "https") {
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains",
+    );
   }
   next();
 });
@@ -99,7 +109,8 @@ app.get("/health", (req, res) => {
   const ready = req.app.locals.dbReady;
   res.status(ready ? 200 : 503).json({
     status: ready ? "ok" : "starting",
-    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    database:
+      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
   });
 });
 
@@ -109,18 +120,24 @@ const allowedOrigins = [
   "http://localhost:5173",
   process.env.CLIENT_URL?.replace(/^["']|["']$/g, ""),
 ].filter(Boolean);
-const vercelPreview = /^https:\/\/(foundry|final-ecommerce-website)-[a-z0-9-]+\.vercel\.app$/i;
+const vercelPreview =
+  /^https:\/\/(foundry|final-ecommerce-website)-[a-z0-9-]+\.vercel\.app$/i;
 
 app.use(
   cors({
     // No Origin header = server-to-server / curl, which is allowed.
     origin: (origin, cb) =>
-      cb(null, !origin || allowedOrigins.includes(origin) || vercelPreview.test(origin)),
+      cb(
+        null,
+        !origin ||
+          allowedOrigins.includes(origin) ||
+          vercelPreview.test(origin),
+      ),
     credentials: true, // needed for the httpOnly refresh-token cookie
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     exposedHeaders: ["Content-Disposition"], // so the report download keeps its filename
-  })
+  }),
 );
 
 // ---------- Body / cookie parsing ----------
@@ -159,9 +176,12 @@ const routes = {
   newsletter: newsletterRoutes,
   theme: themeRoutes,
 };
-for (const [path, router] of Object.entries(routes)) app.use(`/api/${path}`, router);
+for (const [path, router] of Object.entries(routes))
+  app.use(`/api/${path}`, router);
 
-app.get("/", (req, res) => res.json({ success: true, message: "E-commerce API is running" }));
+app.get("/", (req, res) =>
+  res.json({ success: true, message: "E-commerce API is running" }),
+);
 
 // ---------- Global error handler ----------
 // Hides internal error details from clients in production.
