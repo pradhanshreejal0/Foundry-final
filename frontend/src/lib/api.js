@@ -10,8 +10,12 @@ const API_BASE =
  * Returns the parsed JSON, or throws an Error with `.status` and `.data`
  * when the server answers with an error status.
  */
-export async function api(path, { accessToken, headers = {}, body, ...rest } = {}) {
-  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+export async function api(
+  path,
+  { accessToken, headers = {}, body, ...rest } = {},
+) {
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
 
   const finalHeaders = { ...headers };
   // For FormData the browser must set Content-Type itself (it adds the boundary).
@@ -22,7 +26,10 @@ export async function api(path, { accessToken, headers = {}, body, ...rest } = {
     ...rest,
     credentials: "include",
     headers: finalHeaders,
-    body: body == null || isFormData || typeof body === "string" ? body : JSON.stringify(body),
+    body:
+      body == null || isFormData || typeof body === "string"
+        ? body
+        : JSON.stringify(body),
   });
 
   // Read as text first so an empty response doesn't crash JSON parsing.
@@ -37,7 +44,9 @@ export async function api(path, { accessToken, headers = {}, body, ...rest } = {
   }
 
   if (!response.ok) {
-    const error = new Error(data?.message || response.statusText || "Request failed");
+    const error = new Error(
+      data?.message || response.statusText || "Request failed",
+    );
     error.status = response.status;
     error.data = data;
     throw error;
@@ -48,12 +57,18 @@ export async function api(path, { accessToken, headers = {}, body, ...rest } = {
 /** Admin: upload an SVG icon for a parent category (max 500 KB). */
 export async function uploadCategoryIcon(file, accessToken) {
   if (!file) throw new Error("Please select an SVG file");
-  if (file.type !== "image/svg+xml") throw new Error("Only SVG files are allowed");
-  if (file.size > 500 * 1024) throw new Error("SVG icon must be smaller than 500KB");
+  if (file.type !== "image/svg+xml")
+    throw new Error("Only SVG files are allowed");
+  if (file.size > 500 * 1024)
+    throw new Error("SVG icon must be smaller than 500KB");
 
   const formData = new FormData();
   formData.append("icon", file);
-  return api("/category-icons", { method: "POST", body: formData, accessToken });
+  return api("/category-icons", {
+    method: "POST",
+    body: formData,
+    accessToken,
+  });
 }
 
 export async function downloadReport(path, { accessToken } = {}) {
