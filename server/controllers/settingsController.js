@@ -6,6 +6,7 @@ function toSettingsPayload(settings) {
   return {
     ...obj,
     vendorRegistrationEnabled: obj.vendorRegistrationEnabled !== false,
+    onlinePaymentsEnabled: process.env.ONLINE_PAYMENTS_ENABLED === "true",
   };
 }
 
@@ -16,6 +17,7 @@ function pickStorefront(settings) {
     supportEmail: obj.supportEmail,
     // Explicit boolean so clients never treat a missing field as "enabled" by accident after disable.
     vendorRegistrationEnabled: obj.vendorRegistrationEnabled !== false,
+    onlinePaymentsEnabled: process.env.ONLINE_PAYMENTS_ENABLED === "true",
     hero: obj.hero || {},
     promo: obj.promo || {},
   };

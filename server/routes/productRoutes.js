@@ -8,6 +8,7 @@ import {
   updateProduct,
   deleteProduct,
   generateProductDescription,
+  updateProductApproval,
 } from "../controllers/productController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -18,6 +19,9 @@ router.get("/", getProducts);
 router.get("/vendor/my-products", protect, authorize("vendor"), getMyProducts);
 router.get("/suggest", getSearchSuggestions); // must come before "/:id"
 router.get("/:id", getProductById);
+
+// Admin only
+router.put("/:id/approval", protect, authorize("admin"), updateProductApproval);
 
 // Vendor only
 router.post("/", protect, authorize("vendor"), createProduct);

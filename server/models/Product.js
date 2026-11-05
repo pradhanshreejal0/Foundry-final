@@ -66,7 +66,12 @@ const productSchema = new mongoose.Schema(
       ref: "Vendor",
       required: true,
     },
-    isPublished: { type: Boolean, default: true },
+    isPublished: { type: Boolean, default: false },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+    },
     views: { type: Number, default: 0 },
     ratings: {
       average: { type: Number, default: 0 },

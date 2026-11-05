@@ -24,13 +24,19 @@ const esc = (s) =>
 // Frontend URL (used in email links and to decide the cookie mode below).
 const clientUrl = String(process.env.CLIENT_URL || "").replace(/^["']|["']$/g, "").trim();
 
-// Frontend on Vercel + backend on Render = cross-site, so the cookie needs
-// SameSite=None + Secure. On localhost we use Lax so it works over plain HTTP.
-const isCrossSite = clientUrl.startsWith("https://") && !/localhost|127\.0\.0\.1/.test(clientUrl);
+// Cookie settings env-driven: COOKIE_SAMESITE (default "lax"), COOKIE_SECURE (default true in production), COOKIE_DOMAIN (default unset).
+const sameSiteEnv = (process.env.COOKIE_SAMESITE || "lax").toLowerCase();
+const sameSite = ["lax", "strict", "none"].includes(sameSiteEnv) ? sameSiteEnv : "lax";
+const secureEnv = process.env.COOKIE_SECURE;
+const isProd = process.env.NODE_ENV === "production";
+const secure = secureEnv !== undefined ? secureEnv === "true" : isProd;
+const cookieDomain = process.env.COOKIE_DOMAIN ? process.env.COOKIE_DOMAIN.trim() : undefined;
+
 const clearCookieOptions = {
   httpOnly: true,
-  secure: isCrossSite,
-  sameSite: isCrossSite ? "none" : "lax",
+  secure,
+  sameSite,
+  ...(cookieDomain ? { domain: cookieDomain } : {}),
   path: "/",
 };
 const cookieOptions = { ...clearCookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 };

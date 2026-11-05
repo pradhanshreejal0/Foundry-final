@@ -315,6 +315,8 @@ export const createProduct = async (req, res) => {
       discountPercentage: productDiscount,
       hasVariants: finalHasVariants,
       variants: finalVariants,
+      isPublished: false,
+      approvalStatus: "pending",
     });
 
     const createdProduct = await Product.findById(product._id)
@@ -828,6 +830,9 @@ export const updateProduct = async (req, res) => {
       product.discountPercentage = productDiscount;
     }
 
+    product.approvalStatus = "pending";
+    product.isPublished = false;
+
     await product.save();
 
     const updatedProduct = await Product.findById(product._id)
@@ -889,6 +894,42 @@ export const deleteProduct = async (req, res) => {
 
     res.status(500).json({
       message: error.message || "Failed to delete product",
+    });
+  }
+};
+
+// Admin: Approve or reject product
+export const updateProductApproval = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!["approved", "rejected", "pending"].includes(status)) {
+      return res.status(400).json({ message: "Invalid approval status. Must be approved, rejected, or pending." });
+    }
+
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    product.approvalStatus = status;
+    product.isPublished = status === "approved";
+    await product.save();
+
+    const updated = await Product.findById(product._id)
+      .populate("category", "name parentCategory")
+      .populate({
+        path: "vendor",
+        select: "storeName storeSlug logo banner phone",
+      });
+
+    return res.json({
+      message: `Product approval updated to ${status}`,
+      product: updated,
+    });
+  } catch (error) {
+    console.error("Update product approval error:", error);
+    return res.status(500).json({
+      message: error.message || "Failed to update product approval",
     });
   }
 };

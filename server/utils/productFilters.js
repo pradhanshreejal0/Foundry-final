@@ -104,7 +104,7 @@ export const parseProductFilters = (query = {}) => {
 };
 
 export const buildProductFilterQuery = (filters = {}, { categoryIds } = {}) => {
-  const query = { isPublished: true };
+  const query = { isPublished: true, approvalStatus: "approved" };
   if (filters.search) {
     const regex = { $regex: escapeRegex(filters.search), $options: "i" };
     query.$or = [

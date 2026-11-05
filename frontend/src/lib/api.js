@@ -1,6 +1,6 @@
-// Backend URL: set VITE_API_URL in client/.env, otherwise use the deployed API.
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://foundry-zycd.onrender.com/api";
+// Backend URL: defaults to relative "/api" for domain-agnostic same-origin proxying.
+// Set VITE_API_URL only if bypassing the proxy (e.g. direct backend access).
+const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 /**
  * Central fetch helper used by every page.

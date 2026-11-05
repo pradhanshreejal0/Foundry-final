@@ -6,7 +6,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-import zlib from "node:zlib";
+import compression from "compression";
 
 import {
   loginLimiter,
@@ -41,47 +41,46 @@ import themeRoutes from "./routes/themeRoutes.js";
 
 dotenv.config();
 
+// ---------- Startup Env & Security Checks ----------
+const requiredEnv = [
+  "MONGO_URI",
+  "JWT_SECRET",
+  "JWT_REFRESH_SECRET",
+  "PUBLIC_URL",
+  "ALLOWED_ORIGINS",
+];
+
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+if (missingEnv.length > 0) {
+  console.warn(`⚠️ WARNING: Missing recommended environment variables: ${missingEnv.join(", ")}`);
+  if (process.env.NODE_ENV === "production") {
+    console.error(`❌ CRITICAL: Missing required environment variables in production: ${missingEnv.join(", ")}`);
+    process.exit(1);
+  }
+}
+
+if (process.env.NODE_ENV === "production") {
+  if (process.env.JWT_SECRET && process.env.JWT_SECRET.length < 32) {
+    console.error("❌ CRITICAL: JWT_SECRET must be at least 32 characters long in production.");
+    process.exit(1);
+  }
+  if (process.env.JWT_REFRESH_SECRET && process.env.JWT_REFRESH_SECRET.length < 32) {
+    console.error("❌ CRITICAL: JWT_REFRESH_SECRET must be at least 32 characters long in production.");
+    process.exit(1);
+  }
+}
+
 const app = express();
 
-// Behind a proxy (Vercel/Render) so rate limiting sees the visitor's real IP,
-// not the proxy's.
-app.set("trust proxy", 1);
+// Proxy and real client IP setup
+const trustProxyHops = Number(process.env.TRUST_PROXY_HOPS) || 2;
+app.set("trust proxy", trustProxyHops);
 app.disable("x-powered-by");
 
-// Compress JSON API responses when the browser supports gzip. This avoids
-// adding another dependency and keeps larger product/category payloads small.
-app.use((req, res, next) => {
-  if (req.method === "HEAD" || req.method === "OPTIONS") return next();
+// Compression middleware
+app.use(compression());
 
-  const acceptEncoding = String(req.headers["accept-encoding"] || "");
-  if (!acceptEncoding.includes("gzip")) return next();
-
-  const originalJson = res.json.bind(res);
-
-  res.json = (body) => {
-    try {
-      const json = JSON.stringify(body);
-
-      // Tiny responses are faster without compression overhead.
-      if (json.length < 1024 || res.headersSent) {
-        return originalJson(body);
-      }
-
-      const compressed = zlib.gzipSync(Buffer.from(json));
-      res.setHeader("Content-Encoding", "gzip");
-      res.setHeader("Vary", "Accept-Encoding");
-      res.setHeader("Content-Type", "application/json; charset=utf-8");
-      res.removeHeader("Content-Length");
-      return res.end(compressed);
-    } catch (error) {
-      return originalJson(body);
-    }
-  };
-
-  next();
-});
-
-// Basic security headers (no extra dependency needed).
+// Basic security headers
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
@@ -99,53 +98,96 @@ app.use((req, res, next) => {
   next();
 });
 
+// Cache-Control no-store on authenticated requests
+app.use((req, res, next) => {
+  if (req.headers.authorization || req.cookies?.refreshToken) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  }
+  next();
+});
+
 // ---------- Database ----------
 connectDB()
   .then(() => (app.locals.dbReady = true))
   .catch(() => (app.locals.dbReady = false));
 
-// Readiness probe: 200 once MongoDB is connected, 503 before that.
-app.get("/health", (req, res) => {
+// Health & version endpoints
+const handleHealth = (req, res) => {
   const ready = req.app.locals.dbReady;
-  res.status(ready ? 200 : 503).json({
-    status: ready ? "ok" : "starting",
-    database:
-      mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+  const dbState = mongoose.connection.readyState;
+  res.status(ready && dbState === 1 ? 200 : 503).json({
+    status: ready && dbState === 1 ? "ok" : "degraded",
+    database: dbState === 1 ? "connected" : "disconnected",
+    timestamp: new Date().toISOString(),
+  });
+};
+
+app.get("/health", handleHealth);
+app.get("/api/health", handleHealth);
+
+app.get("/api/version", (req, res) => {
+  res.json({
+    name: "foundry-server",
+    version: "1.0.0",
+    nodeEnv: process.env.NODE_ENV || "development",
+    onlinePaymentsEnabled: process.env.ONLINE_PAYMENTS_ENABLED === "true",
+  });
+});
+
+// Temporary protected debug endpoint to verify real IP behind proxy
+app.get("/api/debug/ip", (req, res) => {
+  res.json({
+    ip: req.ip,
+    ips: req.ips,
+    xForwardedFor: req.headers["x-forwarded-for"] || null,
+    xRealIp: req.headers["x-real-ip"] || null,
   });
 });
 
 // ---------- CORS ----------
-// Browsers may call the API only from these frontends (plus Vercel previews).
-const allowedOrigins = [
-  "http://localhost:5173",
-  process.env.CLIENT_URL?.replace(/^["']|["']$/g, ""),
-].filter(Boolean);
-const vercelPreview =
-  /^https:\/\/(foundry|final-ecommerce-website|foundry-final-one|[a-z0-9-]+)\.vercel\.app$/i;
+const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || "";
+const allowedOrigins = allowedOriginsEnv
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+if (process.env.CLIENT_URL) {
+  console.warn("⚠️ DEPRECATED: CLIENT_URL is deprecated. Use PUBLIC_URL and ALLOWED_ORIGINS instead.");
+  const legacyClient = process.env.CLIENT_URL.replace(/^["']|["']$/g, "").trim();
+  if (legacyClient && !allowedOrigins.includes(legacyClient)) {
+    allowedOrigins.push(legacyClient);
+  }
+}
+
+if (process.env.NODE_ENV !== "production") {
+  if (!allowedOrigins.includes("http://localhost:5173")) {
+    allowedOrigins.push("http://localhost:5173");
+  }
+}
 
 app.use(
   cors({
-    // No Origin header = server-to-server / curl, which is allowed.
-    origin: (origin, cb) =>
-      cb(
-        null,
-        !origin ||
-          allowedOrigins.includes(origin) ||
-          vercelPreview.test(origin),
-      ),
-    credentials: true, // needed for the httpOnly refresh-token cookie
+    origin: (origin, cb) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-    exposedHeaders: ["Content-Disposition"], // so the report download keeps its filename
+    exposedHeaders: ["Content-Disposition"],
   }),
 );
 
 // ---------- Body / cookie parsing ----------
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "100kb" }));
 app.use(cookieParser());
 
-// Brute-force protection on the sensitive auth endpoints.
+// Brute-force protection on sensitive auth endpoints
 app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth/register", registerLimiter);
 app.use("/api/auth/forgot-password", forgotPasswordLimiter);
@@ -176,15 +218,15 @@ const routes = {
   newsletter: newsletterRoutes,
   theme: themeRoutes,
 };
+
 for (const [path, router] of Object.entries(routes))
   app.use(`/api/${path}`, router);
 
 app.get("/", (req, res) =>
-  res.json({ success: true, message: "E-commerce API is running" }),
+  res.json({ success: true, message: "Foundry E-commerce API is running" }),
 );
 
 // ---------- Global error handler ----------
-// Hides internal error details from clients in production.
 app.use((err, req, res, next) => {
   console.error("Server Error:", err);
   const status = Number(err.status || err.statusCode) || 500;
@@ -198,4 +240,17 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () =>
+  console.log(`Server running on port ${PORT} (Env: ${process.env.NODE_ENV || "development"})`),
+);
+
+// Graceful shutdown on SIGTERM
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received. Shutting down gracefully...");
+  server.close(() => {
+    mongoose.connection.close(false, () => {
+      console.log("MongoDB connection closed.");
+      process.exit(0);
+    });
+  });
+});

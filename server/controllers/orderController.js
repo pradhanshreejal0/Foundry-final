@@ -518,11 +518,22 @@ export const createOrder = async (req, res) => {
       }
     }
 
-    const allowedPaymentMethods = ["cod", "esewa", "khalti"];
+    const method = String(paymentMethod || "cod").toLowerCase();
+    const onlineEnabled = process.env.ONLINE_PAYMENTS_ENABLED === "true";
 
-    if (!allowedPaymentMethods.includes(paymentMethod)) {
+    if (!onlineEnabled && (method === "esewa" || method === "khalti")) {
+      return res.status(503).json({
+        message: "Online payment is coming soon. Please choose Cash on Delivery.",
+      });
+    }
+
+    const allowedPaymentMethods = onlineEnabled ? ["cod", "esewa", "khalti"] : ["cod"];
+
+    if (!allowedPaymentMethods.includes(method)) {
       return res.status(400).json({
-        message: "Invalid payment method. Use cod, esewa, or khalti.",
+        message: onlineEnabled
+          ? "Invalid payment method. Use cod, esewa, or khalti."
+          : "Invalid payment method. Only Cash on Delivery (cod) is currently available.",
       });
     }
 

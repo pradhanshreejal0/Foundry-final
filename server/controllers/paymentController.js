@@ -53,6 +53,12 @@ const signEsewa = (message, secret) =>
  */
 export const initiatePayment = async (req, res) => {
   try {
+    if (process.env.ONLINE_PAYMENTS_ENABLED !== "true") {
+      return res.status(503).json({
+        message: "Online payment is coming soon. Please choose Cash on Delivery.",
+      });
+    }
+
     const orderId = req.body.orderId || req.params.id;
     const paymentMethod = String(
       req.body.paymentMethod || req.body.method || ""
@@ -240,6 +246,12 @@ export const payOrder = async (req, res) => {
  */
 export const verifyPayment = async (req, res) => {
   try {
+    if (process.env.ONLINE_PAYMENTS_ENABLED !== "true") {
+      return res.status(503).json({
+        message: "Online payment is coming soon. Please choose Cash on Delivery.",
+      });
+    }
+
     const order = await getOrderForPayment(req.params.id, req.user._id);
 
     if (order.paymentStatus === "paid") {
