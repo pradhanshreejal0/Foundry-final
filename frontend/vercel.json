@@ -7,7 +7,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://foundry-zycd.onrender.com/api/:path*"
+      "destination": "https://foundry-final.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
