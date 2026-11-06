@@ -46,17 +46,26 @@ const requiredEnv = [
   "MONGO_URI",
   "JWT_SECRET",
   "JWT_REFRESH_SECRET",
+];
+
+const recommendedEnv = [
   "PUBLIC_URL",
   "ALLOWED_ORIGINS",
 ];
 
-const missingEnv = requiredEnv.filter((key) => !process.env[key]);
-if (missingEnv.length > 0) {
-  console.warn(`⚠️ WARNING: Missing recommended environment variables: ${missingEnv.join(", ")}`);
-  if (process.env.NODE_ENV === "production") {
-    console.error(`❌ CRITICAL: Missing required environment variables in production: ${missingEnv.join(", ")}`);
-    process.exit(1);
-  }
+const missingRequired = requiredEnv.filter((key) => !process.env[key]);
+if (missingRequired.length > 0) {
+  console.error(`❌ CRITICAL: Missing required environment variables: ${missingRequired.join(", ")}`);
+  process.exit(1);
+}
+
+const missingRecommended = recommendedEnv.filter((key) => !process.env[key]);
+if (missingRecommended.length > 0) {
+  console.warn(`⚠️ WARNING: Missing recommended environment variables: ${missingRecommended.join(", ")}`);
+}
+
+if (!process.env.PUBLIC_URL) {
+  process.env.PUBLIC_URL = "https://foundry-zycd.onrender.com";
 }
 
 if (process.env.NODE_ENV === "production") {
@@ -145,11 +154,16 @@ app.get("/api/debug/ip", (req, res) => {
 });
 
 // ---------- CORS ----------
-const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || "";
-const allowedOrigins = allowedOriginsEnv
-  .split(",")
-  .map((s) => s.trim())
-  .filter(Boolean);
+const allowedOriginsEnv =
+  process.env.ALLOWED_ORIGINS ||
+  "https://foundry-zycd.onrender.com,http://localhost:5173";
+const allowedOrigins =
+  allowedOriginsEnv === "*"
+    ? ["*"]
+    : allowedOriginsEnv
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
 if (process.env.CLIENT_URL) {
   console.warn("⚠️ DEPRECATED: CLIENT_URL is deprecated. Use PUBLIC_URL and ALLOWED_ORIGINS instead.");
@@ -159,7 +173,10 @@ if (process.env.CLIENT_URL) {
   }
 }
 
-if (process.env.NODE_ENV !== "production") {
+if (!allowedOrigins.includes("*")) {
+  if (!allowedOrigins.includes("https://foundry-zycd.onrender.com")) {
+    allowedOrigins.push("https://foundry-zycd.onrender.com");
+  }
   if (!allowedOrigins.includes("http://localhost:5173")) {
     allowedOrigins.push("http://localhost:5173");
   }
@@ -170,7 +187,7 @@ app.use(
     origin: (origin, cb) => {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
       if (!origin) return cb(null, true);
-      if (allowedOrigins.includes(origin)) {
+      if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
         return cb(null, true);
       }
       return cb(new Error("Not allowed by CORS"));
