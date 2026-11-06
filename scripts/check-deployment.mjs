@@ -1,10 +1,10 @@
 /**
  * Deployment verification script (Node 20+, zero external dependencies).
  * Usage: node scripts/check-deployment.mjs [domain]
- * Default domain: https://foundry-zycd.onrender.com (or pass custom domain).
+ * Default domain: https://foundry-final.onrender.com (or pass custom domain).
  */
 
-const targetUrl = process.argv[2] || "https://foundry-zycd.onrender.com";
+const targetUrl = process.argv[2] || "https://foundry-final.onrender.com";
 
 async function runCheck() {
   console.log(`\n🔍 Checking deployment status for: ${targetUrl}\n`);

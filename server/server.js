@@ -65,7 +65,7 @@ if (missingRecommended.length > 0) {
 }
 
 if (!process.env.PUBLIC_URL) {
-  process.env.PUBLIC_URL = "https://foundry-zycd.onrender.com";
+  process.env.PUBLIC_URL = "https://foundry-final.onrender.com";
 }
 
 if (process.env.NODE_ENV === "production") {
@@ -156,7 +156,7 @@ app.get("/api/debug/ip", (req, res) => {
 // ---------- CORS ----------
 const allowedOriginsEnv =
   process.env.ALLOWED_ORIGINS ||
-  "https://foundry-zycd.onrender.com,http://localhost:5173";
+  "https://foundry-final.onrender.com,https://foundry-final-one.vercel.app,http://localhost:5173";
 const allowedOrigins =
   allowedOriginsEnv === "*"
     ? ["*"]
@@ -174,8 +174,11 @@ if (process.env.CLIENT_URL) {
 }
 
 if (!allowedOrigins.includes("*")) {
-  if (!allowedOrigins.includes("https://foundry-zycd.onrender.com")) {
-    allowedOrigins.push("https://foundry-zycd.onrender.com");
+  if (!allowedOrigins.includes("https://foundry-final.onrender.com")) {
+    allowedOrigins.push("https://foundry-final.onrender.com");
+  }
+  if (!allowedOrigins.includes("https://foundry-final-one.vercel.app")) {
+    allowedOrigins.push("https://foundry-final-one.vercel.app");
   }
   if (!allowedOrigins.includes("http://localhost:5173")) {
     allowedOrigins.push("http://localhost:5173");

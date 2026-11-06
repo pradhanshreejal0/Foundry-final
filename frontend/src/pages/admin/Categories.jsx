@@ -459,8 +459,7 @@ export default function Categories() {
       form.append("image", file);
 
       const apiBase =
-        import.meta.env.VITE_API_URL ||
-        "https://finalecommercewebsite-backend.onrender.com/api";
+        import.meta.env.VITE_API_URL || "/api";
 
       const response = await fetch(
         `${apiBase}/upload`,
